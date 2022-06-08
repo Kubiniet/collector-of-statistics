@@ -1,0 +1,75 @@
+name: Testing stats_collector
+
+on: push
+
+jobs:
+  black:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    - name: Install deps
+      uses: knowsuchagency/poetry-install@v1
+      env:
+        POETRY_VIRTUALENVS_CREATE: false
+    - name: Run black check
+      run: poetry run black --check .
+  flake8:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    - name: Install deps
+      uses: knowsuchagency/poetry-install@v1
+      env:
+        POETRY_VIRTUALENVS_CREATE: false
+    - name: Run flake8 check
+      run: poetry run flake8 --count .
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    - name: Install deps
+      uses: knowsuchagency/poetry-install@v1
+      env:
+        POETRY_VIRTUALENVS_CREATE: false
+    - name: Run mypy check
+      run: poetry run mypy .
+  pytest:
+    runs-on: ubuntu-latest
+    services:
+      stats_collector-db:
+        image: postgres:13.6-bullseye
+        env:
+          POSTGRES_PASSWORD: stats_collector
+          POSTGRES_USER: stats_collector
+          POSTGRES_DB: stats_collector
+        options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=5
+        ports:
+        - 5432
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    - name: Install deps
+      uses: knowsuchagency/poetry-install@v1
+      env:
+        POETRY_VIRTUALENVS_CREATE: false
+    - name: Run pytest check
+      run: poetry run pytest -vv --cov="stats_collector" .
+      env:
+        STATS_COLLECTOR_HOST: "0.0.0.0"
+        STATS_COLLECTOR_DB_HOST: localhost
+        STATS_COLLECTOR_DB_PORT: ${{job.services.stats_collector-db.ports['5432']}}

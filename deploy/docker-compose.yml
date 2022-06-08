@@ -1,0 +1,68 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./deploy/Dockerfile
+    image: stats_collector:${STATS_COLLECTOR_VERSION:-latest}
+    restart: always
+    env_file:
+    - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      STATS_COLLECTOR_HOST: 0.0.0.0
+      STATS_COLLECTOR_DB_HOST: stats_collector-db
+      STATS_COLLECTOR_DB_PORT: 5432
+      STATS_COLLECTOR_DB_USER: stats_collector
+      STATS_COLLECTOR_DB_PASS: stats_collector
+      STATS_COLLECTOR_DB_BASE: stats_collector
+  db:
+    image: postgres:13.6-bullseye
+    hostname: stats_collector-db
+    environment:
+      POSTGRES_PASSWORD: "stats_collector"
+      POSTGRES_USER: "stats_collector"
+      POSTGRES_DB: "stats_collector"
+    volumes:
+    - stats_collector-db-data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: pg_isready -U stats_collector
+      interval: 2s
+      timeout: 3s
+      retries: 40
+  migrator:
+    image: stats_collector:${STATS_COLLECTOR_VERSION:-latest}
+    restart: "no"
+    command: alembic upgrade head
+    environment:
+      STATS_COLLECTOR_DB_HOST: stats_collector-db
+      STATS_COLLECTOR_DB_PORT: 5432
+      STATS_COLLECTOR_DB_USER: stats_collector
+      STATS_COLLECTOR_DB_PASS: stats_collector
+      STATS_COLLECTOR_DB_BASE: stats_collector
+    depends_on:
+      db:
+        condition: service_healthy
+  redis:
+    image: bitnami/redis:6.2.5
+    hostname: stats_collector-redis
+    restart: always
+    environment:
+      ALLOW_EMPTY_PASSWORD: "yes"
+    healthcheck:
+      test: redis-cli ping
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+
+
+volumes:
+  stats_collector-db-data:
+    name: stats_collector-db-data
