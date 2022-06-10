@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import sessionmaker
 
-from stats_collector.services.redis.lifetime import init_redis, shutdown_redis
 from stats_collector.settings import settings
 
 
@@ -50,7 +49,6 @@ def register_startup_event(app: FastAPI) -> Callable[[], Awaitable[None]]:
     @app.on_event("startup")
     async def _startup() -> None:  # noqa: WPS430
         _setup_db(app)
-        init_redis(app)
         pass  # noqa: WPS420
 
     return _startup
@@ -68,7 +66,6 @@ def register_shutdown_event(app: FastAPI) -> Callable[[], Awaitable[None]]:
     async def _shutdown() -> None:  # noqa: WPS430
         await app.state.db_engine.dispose()
 
-        await shutdown_redis(app)
         pass  # noqa: WPS420
 
     return _shutdown
